@@ -52,15 +52,12 @@ def zeros_in_dic(dictionary: dict) -> dict:
 
     return zeros_dic
 
-"""
 
-"""
 def nan_counter(dic: dict) -> int:
     nan_polluted_series_counter = 0
     for p in dic:
         if dic[p].isnull().sum().sum() > 0:
             nan_polluted_series_counter+=1
-    print(nan_polluted_series_counter)
     return nan_polluted_series_counter
 
 

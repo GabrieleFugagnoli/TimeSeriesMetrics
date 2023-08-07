@@ -25,10 +25,9 @@ def continous_zeros(dic: dict, n_elements: int = 200, n_prediction: int = 30) ->
         temp = dic[p].reset_index()
         streak = False
         values = temp.loc[(len(temp)-n_prediction-n_elements):(len(temp)-n_prediction-1), ['Amount_sold']].to_numpy()
-        #print(type(values), values)
         for i in values:
             #print(i)
-            if i == 0:
+            if i == 0 or np.isnan(i):
                 if streak:
                     #eravamo già in streak
                     streak_count += 1
@@ -43,18 +42,23 @@ def continous_zeros(dic: dict, n_elements: int = 200, n_prediction: int = 30) ->
                     zeros_list.append(streak_count)
                     streak_count = 0
 
+        if streak: zeros_list.append(streak_count)
         zeros_dic[p] = zeros_list
 
     return zeros_dic
 
 #modfica il dizionario passato come parametro
-def delete_gaps(dic: dict, zeros_dic: dict, cutoff: int = 100) -> dict:
-
+def delete_gaps(dic_arg: dict, zeros_dic: dict, cutoff: int = 100) -> dict:
+    counter = 0
+    dic = copy.deepcopy(dic_arg)
     for p in zeros_dic:
         if any(num > cutoff  for num in zeros_dic[p]):
             print(f"Cancello il prodotto n.{p}")
             print(f"Lista di zeri del prodotto n.{p}: {zeros_dic[p]}")
+            counter +=1
             del dic[p]
+    print(f"Prodotti eliminati: {counter}")
+    return dic
 
 
 if __name__ == "__main__":
