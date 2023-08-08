@@ -12,10 +12,19 @@ import copy
 import matplotlib.pyplot as plt
 
 
+def continous_zeros(dic: dict, n_elements: int = 200) -> dict:
+    """Calculates the list of continous zeros of the series inside a dictionary
+        input: dizionario [chiave : dataframe] dove le serie storiche sono giornaliere
+        output dizionario [chiave : lista] di zeri consecutivi negli ultimi n_elements giorni prima dell'inizio della prediction
+     
+      :param dict dic: Dictionary that contains dataframes
 
-#input: dizionario [chiave : dataframe] dove le serie storiche sono giornaliere
-#output dizionario [chiave : lista] di zeri consecutivi negli ultimi n_elements giorni prima dell'inizio della prediction
-def continous_zeros(dic: dict, n_elements: int = 200, n_prediction: int = 30) -> dict:
+      :param int n_elements: The number of elements in the dataframe to use from the last value of the series
+
+      :return: dictionary that contains the list of zeros for each element
+
+      :rtype: dict
+      """
     #non voglio modificare dic
     temp = pd.DataFrame()
     zeros_dic = dict()
@@ -24,7 +33,7 @@ def continous_zeros(dic: dict, n_elements: int = 200, n_prediction: int = 30) ->
         zeros_list = []
         temp = dic[p].reset_index()
         streak = False
-        values = temp.loc[(len(temp)-n_prediction-n_elements):(len(temp)-n_prediction-1), ['Amount_sold']].to_numpy()
+        values = temp.loc[(len(temp)-n_elements):(len(temp)-1), ['Amount_sold']].to_numpy()
         for i in values:
             #print(i)
             if i == 0 or np.isnan(i):
@@ -47,8 +56,20 @@ def continous_zeros(dic: dict, n_elements: int = 200, n_prediction: int = 30) ->
 
     return zeros_dic
 
-#modfica il dizionario passato come parametro
+
 def delete_gaps(dic_arg: dict, zeros_dic: dict, cutoff: int = 100) -> dict:
+    """Deletes from the dictionary the dataframes with elements bigger than cutoff inside their respective zeros_dict
+
+    :param dict dic_arg: The dictionary from which to delete the entries
+
+    :param dict zeros_dic: A dictionary that pairs every key to the list of continous zero of the relative dataframe
+
+    :param int cutoff: The cutoff number of continous zeros above which to delete the series
+
+    :return: A dictionary without the deleted elements
+
+    :rtype: dict """
+
     counter = 0
     dic = copy.deepcopy(dic_arg)
     for p in zeros_dic:
