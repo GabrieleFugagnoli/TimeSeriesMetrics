@@ -7,10 +7,9 @@ sys.path.append(r"c:\Users\gabriele.fugagnoli\Desktop\gabrielefugagnoli\TimeSeri
 from tspkg.paths import *
 from tspkg.utils import *
 
-with open(processed_dir / 'dictionary.pkl', 'rb') as f:
-   dic = pickle.load(f)
 
 def delete_weekends(dic):
+    """Script that takes a id:dataframe dictionary in daily format and deletes the weekend values summing the non-zero values into the Friday ones"""
     for p in dic.keys():
         dropped = 0 
         iszero = 0

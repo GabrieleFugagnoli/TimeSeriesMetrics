@@ -5,8 +5,9 @@ from tspkg.utils import *
 import pickle
 
 
-
 def data_setup(csv_name):
+    """Script that transforms a specific csv into a more managable dataframe format
+    """
 
     df = pd.read_csv(raw_dir/csv_name, header = None)
 
