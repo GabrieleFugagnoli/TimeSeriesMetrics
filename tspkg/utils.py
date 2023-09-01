@@ -2,7 +2,6 @@
 import sys
 sys.path.append(r"c:\Users\gabriele.fugagnoli\Desktop\gabrielefugagnoli\TimeSeriesMetricsProject") 
 from tspkg.paths import *
-from tspkg.utils import *
 import copy
 
 import numpy as np
@@ -122,8 +121,8 @@ def pearson(dic: dict) -> pd.DataFrame:
 
 def continous_zeros(dic: dict, n_elements: int = 200) -> dict:
     """Calculates the list of continous zeros of the series inside a dictionary
-        input: dizionario [chiave : dataframe] dove le serie storiche sono giornaliere
-        output dizionario [chiave : lista] di zeri consecutivi negli ultimi n_elements giorni prima dell'inizio della prediction
+        input: dictionary [chiave : dataframe] with daily time series
+        output: dictionary [chiave : list] where the list contains the sets of continous zeros from the last n_elements elements
      
       :param dict dic: Dictionary that contains dataframes
 

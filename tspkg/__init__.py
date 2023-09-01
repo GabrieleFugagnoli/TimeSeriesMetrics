@@ -1,1 +1,1 @@
-__all__ = ['config', 'utils']
+__all__ = ['paths', 'utils', 'cbd_utils']
