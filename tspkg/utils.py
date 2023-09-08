@@ -3,14 +3,12 @@ import sys
 sys.path.append(r"c:\Users\gabriele.fugagnoli\Desktop\gabrielefugagnoli\TimeSeriesMetricsProject") 
 from tspkg.paths import *
 import copy
-
+import random
 import numpy as np
+from numpy import array
 import pandas as pd
 import pickle
 from statsmodels.tsa.seasonal import seasonal_decompose
-
-
-
 
 def specific_data_processing(df) -> dict:
     """Partendo da un dataframe che contiene entry |ProductID - Data - Venduto - altre possibili colonne| ritorno un dataframe che 
@@ -251,8 +249,30 @@ def ewm(dic: dict, a: int):
        print(f"SMA smoothing del prodotto {p}")
 
 
+def sample(dic: dict, n_sample) -> dict:
+   
+   selection = dict()
+   sample = random.sample(list(dic.keys()), n_sample)
+   for p in sample:
+        selection[p] = dic[p]
 
-    
+   return selection
+
+
+def split_sequences(sequences, n_steps_in, prediction):
+ X, y = list(), list()
+ for i in range(len(sequences)):
+   # find the end of this pattern
+   end_ix = i + n_steps_in
+   out_end_ix = end_ix + prediction
+   # check if we are beyond the dataset
+   if out_end_ix > len(sequences):
+      break
+   # gather input and output parts of the pattern
+   seq_x, seq_y = sequences[i:end_ix, :], sequences[end_ix:out_end_ix, :]
+   X.append(seq_x)
+   y.append(seq_y)
+   return array(X), array(y)
 # if __name__ == "__main__":
 
 #     with open(dict_path, 'rb') as f :

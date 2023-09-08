@@ -37,12 +37,13 @@ def rmse(actual, predicted) -> int:
             sum += np.power(actual[i]-predicted[i], 2)
     return np.sqrt(sum / len(actual))     
 
-    
+#unit test per serie uguali   
 np.testing.assert_equal(mase([1,1], [1,1]), np.nan)
 assert mape(np.array([1,1]), np.array([1,1])) ==  0
 assert wape(np.array([1,1]), np.array([1,1])) ==  0
 assert rmse([1,1], [1,1]) ==  0
 
+#unit test per serie diverse 
 assert mase(np.array([1,2,3]), np.array([1,2,1])) == 2/3
 assert mape(np.array([1,2,3]), np.array([1,2,1])) == 200/9
 assert wape(np.array([1,2,3]), np.array([1,2,1])) == 1/3

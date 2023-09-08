@@ -1,13 +1,13 @@
 import os
 from pyts.approximation import SymbolicAggregateApproximation
 import bz2
-import copy
-from sklearn.manifold import MDS
+# import copy
+# from sklearn.manifold import MDS
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 import matplotlib.pyplot as plt
 import random
-from matplotlib.backends.backend_pdf import PdfPages
+# from matplotlib.backends.backend_pdf import PdfPages
 from tspkg.paths import *
 
 def sax(dic: dict, bins: int = 26, strategy: str = 'quantile') -> list:
@@ -149,12 +149,5 @@ def compression_lenght(string_arg: list) -> int:
 
     return os.path.getsize(processed_dir / "compressedStrings/compressed_file.txt")
 
-def sample(dic: dict, n_sample) -> dict:
-   
-   selection = dict()
-   sample = random.sample(list(dic.keys()), n_sample)
-   for p in sample:
-        selection[p] = dic[p]
 
-   return selection
 
