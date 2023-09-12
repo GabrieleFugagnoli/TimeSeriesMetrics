@@ -10,11 +10,11 @@ def mase(actual, predicted) -> int:
     for i in range(len(actual)-1):
         differences.append(np.abs(actual[i+1]-actual[i]))
         
-    average_difference = np.mean(differences)
+    mae_error = np.mean(differences)
 
     values = []
     for i in range(len(actual)):
-        values.append(np.abs((actual[i] - predicted[i]) / average_difference))
+        values.append(np.abs((actual[i] - predicted[i]) / mae_error))
     return np.mean(values)
 
     # values = []
@@ -51,3 +51,6 @@ assert rmse(np.array([1,2,3]), np.array([1,2,1])) == np.sqrt(4/3)
 
 # if __name__ == "__main__":
 #      print(mase(np.array([1,2,3]), np.array([1,2,1])))
+
+if __name__ == "__main__":
+     print(mase([0,1,0,1],[100,45,38,50]))

@@ -11,9 +11,16 @@ class TestForecastSeries:
         arr = np.array([10, 20, 40, 50, 60, 80, 90, 110, 120, 130])
         print(arr.shape)
         obj = ForecastSeries(data = arr, timesteps = 2, prediction_length = 1)
-        assert obj.val_indif == 80
+        
+        assert obj.val_indif == 110
+        assert obj.test_indif == 120
+        assert len(obj.test_fit) == 2
+        assert len(obj.test_actual) == 1
+        assert len(obj.validation_fit) == 2
+        assert len(obj.test_actual) == 1
+        
         assert (obj.data == [10, 20, 40, 50, 60, 80, 90, 110, 120, 130]).all()
-        assert obj.test_indif == 110
         assert len(obj.X) == 5
         assert len(obj.y) == 5
+
         

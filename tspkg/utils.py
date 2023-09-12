@@ -283,7 +283,6 @@ def split_sequence(sequence, n_steps_in, n_steps_out):
         end_ix = i + n_steps_in
         out_end_ix = end_ix + n_steps_out
         # check if we are beyond the sequence
-        print(out_end_ix)
         if out_end_ix > len(sequence):
             break
         # gather input and output parts of the pattern
