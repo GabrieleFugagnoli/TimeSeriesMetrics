@@ -197,8 +197,8 @@ def conv_to_weekly(dic):
         dic[p]=dic[p].resample('w').sum()
     
 
-    with open(processed_dir / 'weekly_dictionary.pkl', 'wb') as f:
-        pickle.dump(dic, f)
+    # with open(processed_dir / 'weekly_dictionary.pkl', 'wb') as f:
+    #     pickle.dump(dic, f)
 
 
 def stl(dic, period = 7):

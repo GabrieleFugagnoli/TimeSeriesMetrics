@@ -25,13 +25,15 @@ def difference(data: np.array) -> np.array:
 
 def inverse_difference(starting_value, data):
     restored = list()
-    restored.append(starting_value)
     for i in range(len(data)):
-        restored.append(data[i] + restored[-1])
+        if i == 0:
+            restored.append(data[0] + starting_value)
+        else:
+            restored.append(data[i] + restored[-1])
     return restored
 
 
-class ForecastSeries:
+class NNSeries:
     def __init__(self, data: np.array, timesteps: int, prediction_length: int):
         
         self.data = data
@@ -41,29 +43,35 @@ class ForecastSeries:
         
         #oggetto StandardScaler di sklearn fittato sulla serie
         self.scaler_obj = self.scaler((self.data))
+
         #intera serie differenziata e scalata
         self.prepared_data = self.scaler_obj.transform(difference(self.data).reshape(-1,1))
 
-        #valori per invertire la differenziazione dei valori predetti
+        #valori per invertire la differenziazione dei valori predetti, sia per il set di validation che test
         self.restoration_data['validation_indif'] = data[-(2*prediction_length + 1)]
         self.restoration_data['test_indif']= data[-(prediction_length + 1)]
 
-        #train set convertito come un set di dati per supervised learning sul quale verrà fatto il fit
+        #Primo valore della serie
+        self.restoration_data['first_value'] = self.data[0]
+
+        #train set convertito come un set di dati per supervised learning sul quale verrà fatto il fit, viene usato per il tuning
         self.X, self.y = split_sequence(self.prepared_data[:-(2*prediction_length)], self.timesteps, self.prediction_length)
         
         #set di dati per il test set, i dati per il fit (lunghi timesteps) sono elaborati mentre 
         #quelli di actual sono raw
         self.test_fit = self.prepared_data[(-self.prediction_length - self.timesteps):-prediction_length]
         self.test_actual = self.data[-prediction_length:]
+        #per calcolare il mase ho bisogno di un valore in più a sx di actual
+        self.test_actual_mase = self.data[-(prediction_length+1):]
         
-        self.restoration_data['first_value'] = self.data[0]
 
         #set di dati per il set di validation, i dati per il fit (lunghi timesteps) sono elaborati mentre 
         #quelli di actual sono raw
         self.validation_predict = self.prepared_data[(- 2*self.prediction_length - self.timesteps):-2*prediction_length]
         #expressed with raw data
         self.validation_actual = self.data[-2*prediction_length:-prediction_length]
-
+        #per calcolare il mase ho bisogno di un valore in più a sx di actual
+        self.validation_actual_mase = self.data[-(2*prediction_length+1):-prediction_length]
     
     def scaler(self, dataset):
         obj = StandardScaler()
@@ -102,10 +110,10 @@ def create_univariate_cnn(trial, n_steps_in, n_prediction):
     # num_cnn_blocks = trial.suggest_int('num_cnn_blocks', 2, 4)
     num_filters = trial.suggest_categorical('conv_filters', [32, 64, 128])
     k_size = trial.suggest_int('kernel_size', 2, 4)
-    n_dense_nodes = trial.suggest_categorical('num_dense_nodes', [25, 50, 75, 100])
+    n_dense_nodes = trial.suggest_int('num_dense_nodes', 25, 100, 25)
     n_pooling = trial.suggest_categorical('num_pooling', [1, 2, 4])
     #il batch size va specificato nel fit, per ora non lo includo
-    batch_size = trial.suggest_categorical('batch_size', [32, 64, 96, 128])
+    # batch_size = trial.suggest_categorical('batch_size', [32, 64, 96, 128])
     
     # creo il modello
     model = Sequential()
@@ -120,13 +128,18 @@ def create_univariate_cnn(trial, n_steps_in, n_prediction):
 
 def create_univariate_lstm(trial, n_steps_in, n_prediction):
     """Crea un modello di rete neurale lstm di keras con layer: ...a partire dai parametri passati da optuna."""
-    nodes1 = trial.suggest_int('nodes1', 50, 200, 50)
-    nodes2 = trial.suggest_int('nodes2', 50, 200, 50)
+    nodes1 = trial.suggest_int('nodes1', 50, 200, 25)
+    nodes2 = trial.suggest_int('nodes2', 50, 200, 25)
     model = Sequential()
-    model.add(LSTM(nodes1, activation='relu', input_shape=(n_steps_in, 1)))
-    model.add(RepeatVector(n_prediction))
-    model.add(LSTM(nodes2, activation='relu', return_sequences=True))
-    model.add(TimeDistributed(Dense(1)))
+    # Modello encoder-decoder:
+    # model.add(LSTM(nodes1, activation='relu', input_shape=(n_steps_in, 1)))
+    # model.add(RepeatVector(n_prediction))
+    # model.add(LSTM(nodes2, activation='relu', return_sequences=True))
+    # model.add(TimeDistributed(Dense(1)))
+    # Vector output:
+    model.add(LSTM(nodes1, activation='relu', return_sequences=True, input_shape=(n_steps_in, 1)))
+    model.add(LSTM(nodes2, activation='relu'))
+    model.add(Dense(n_prediction))
     model.compile(optimizer='adam', loss='mse')
     return model
 
@@ -137,20 +150,23 @@ class UnivariateLSTMObjective:
     def __init__(self, series):
         self.series = series
     
+    # Verrà chiamata dallo study, crea il modello usando gli iperparametri in trial e ritorna il mase della predizione del validation
     def __call__(self, trial):
         model = create_univariate_lstm(trial, 
                                       n_steps_in= self.series.timesteps, 
                                       n_prediction = self.series.prediction_length)
-        #per questo tipo di lstm encoder decoder anche i dati di controllo y devono avere dimensioni [samples, timesteps, features]
+        #dipendentemente dal tipo di modelli, y deve avere dimensione diversa, per il modello encoder/decoder
+        #bisogna fare il reshape come per X
         model.fit(self.series.X.reshape((self.series.X.shape[0], self.series.X.shape[1], 1)),
-                  self.series.y.reshape((self.series.y.shape[0], self.series.y.shape[1], 1)),
-                epochs=15,
+                  self.series.y,
+                  #self.series.y.reshape((self.series.y.shape[0], self.series.y.shape[1], 1)),
+                epochs=10,
                 verbose=0)
         prediction = model.predict(self.series.validation_predict.reshape(1, self.series.timesteps, 1), verbose=0)
-        score = mase(self.series.validation_actual, self.series.validation_prediction_conversion(prediction))
+        score = mase(self.series.validation_actual_mase, self.series.validation_prediction_conversion(prediction))
         print(f"------ Score lstm: {score}--------")
         print(f"----------Actual: {self.series.validation_actual}---------")
-        print(f"----------Predicted: {self.series.validation_prediction_conversion(prediction)}")
+        print(f"----------Predicted: {self.series.validation_prediction_conversion(prediction)}------------")
         return score
 
 class UnivariateCNNObjective:
@@ -160,6 +176,7 @@ class UnivariateCNNObjective:
     def __init__(self, series):
         self.series = series
     
+    # Verrà chiamata dallo study, crea il modello usando gli iperparametri in trial e ritorna il mase della predizione del validation
     def __call__(self, trial):
         model = create_univariate_cnn(trial, 
                                       n_steps_in= self.series.timesteps, 
@@ -167,16 +184,19 @@ class UnivariateCNNObjective:
         #I dati X per il fit devono avere dimensione [samples, timesteps, features], y invece non ha bisogno di manipolazioni
         model.fit(self.series.X.reshape((self.series.X.shape[0], self.series.X.shape[1], 1)), 
                 self.series.y,
-                epochs=15,
+                epochs=500,
                 verbose=0)
         print(f"{self.series.X.shape}")
         prediction = model.predict(self.series.validation_predict.reshape(1, self.series.timesteps, 1), verbose=0)
-        score = mase(self.series.validation_actual, self.series.validation_prediction_conversion(prediction))
+        score = mase(self.series.validation_actual_mase, self.series.validation_prediction_conversion(prediction))
+        print(f"------ Score CNN: {score}--------")
+        print(f"----------Actual: {self.series.validation_actual}---------")
+        print(f"----------Predicted: {self.series.validation_prediction_conversion(prediction)}------------")
         return score
 
 def tests():
     arr = np.array([10, 20, 40, 50, 60, 80, 90, 110, 120, 130])
-    obj = ForecastSeries(data = arr, timesteps = 2, prediction_length = 1)
+    obj = NNSeries(data = arr, timesteps = 2, prediction_length = 1)
     print(obj.prepared_data)
     # print(obj.X)
     print(f"Test fit :{obj.test_fit}")
@@ -204,7 +224,7 @@ def test_series():
     series = dic[list(dic.keys())[0]]
     print(series.tail(15))
     #print(np.array(series['Amount_sold']))
-    test = ForecastSeries(np.array(series['Amount_sold']), timesteps = 730, prediction_length=7)
+    test = NNSeries(np.array(series['Amount_sold']), timesteps = 730, prediction_length=7)
     print(f"Actual validation: {test.validation_actual}")
     print(f"Actual test: {test.test_actual}")
 
@@ -212,7 +232,7 @@ def test_cnn_tuning():
     with open(processed_dir / 'cluster1.pkl', 'rb') as f :
         dic = pickle.load(f)
     series = dic[list(dic.keys())[0]]
-    series = ForecastSeries(np.array(series['Amount_sold']), timesteps= 730, prediction_length=7)
+    series = NNSeries(np.array(series['Amount_sold']), timesteps= 730, prediction_length=7)
     cnn_objective = UnivariateCNNObjective(series)
 
     study = optuna.create_study(direction='minimize')
@@ -223,12 +243,41 @@ def test_lstm_tuning():
     with open(processed_dir / 'cluster1.pkl', 'rb') as f :
         dic = pickle.load(f)
     series = dic[list(dic.keys())[0]]
-    series = ForecastSeries(np.array(series['Amount_sold']), timesteps= 730, prediction_length=7)
+    series = NNSeries(np.array(series['Amount_sold']), timesteps= 730, prediction_length=7)
     lstm_objective = UnivariateLSTMObjective(series)
 
     study = optuna.create_study(direction='minimize')
     study.optimize(lstm_objective, n_trials = 10)
     print(study.best_params)
 
+def test_weekly_cnn_tuning():
+    with open(processed_dir / 'cluster1.pkl', 'rb') as f :
+        dic = pickle.load(f)
+    conv_to_weekly(dic)
+    series = dic[list(dic.keys())[0]]
+    series = NNSeries(np.array(series['Amount_sold']), timesteps= 104, prediction_length=1)
+    cnn_objective = UnivariateCNNObjective(series)
+
+    study = optuna.create_study(direction='minimize')
+    study.optimize(cnn_objective, n_trials = 20)
+    print(f"Migliori parametri: {study.best_params}")
+
+def test_weekly_lstm_tuning():
+    with open(processed_dir / 'cluster1.pkl', 'rb') as f :
+        dic = pickle.load(f)
+    conv_to_weekly(dic)
+    series = dic[list(dic.keys())[0]]
+    series = NNSeries(np.array(series['Amount_sold']), timesteps= 104, prediction_length=1)
+    lstm_objective = UnivariateLSTMObjective(series)
+
+    study = optuna.create_study(direction='minimize')
+    study.optimize(lstm_objective, n_trials = 10)
+    print(study.best_params)
+
+
 if __name__ == "__main__":
-    test_lstm_tuning()
+    #la rete lstm ha ancora problemi con i dati giornalieri, restituisce previsioni NaN
+    #test_lstm_tuning()
+    #test_weekly_cnn_tuning()
+    test_cnn_tuning()
+    #test_weekly_lstm_tuning()
