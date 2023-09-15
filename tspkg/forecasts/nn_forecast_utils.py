@@ -2,6 +2,7 @@ import pandas as pd
 from tspkg.utils import * 
 from tspkg.metrics import *
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from keras.models import Model
 from keras.layers import Input
@@ -24,6 +25,7 @@ def difference(data: np.array) -> np.array:
 
 
 def inverse_difference(starting_value, data):
+    """Ripristina una serie differenziata utilizzando il valore di partenza"""
     restored = list()
     for i in range(len(data)):
         if i == 0:
@@ -74,7 +76,8 @@ class NNSeries:
         self.validation_actual_mase = self.data[-(2*prediction_length+1):-prediction_length]
     
     def scaler(self, dataset):
-        obj = StandardScaler()
+        #obj = StandardScaler()
+        obj = MinMaxScaler(feature_range=(-1,1))
         obj = obj.fit(dataset.reshape(-1,1))
         return obj
     
@@ -102,7 +105,7 @@ class NNSeries:
         return self.inverse_test_difference(diff_data)
 
 
-
+#Devo modificare questa funzione in modo da prendere in input i parametri
 def create_univariate_cnn(trial, n_steps_in, n_prediction):
     """Crea un modello di rete neurale convoluzionale di keras con layer: Conv1D, MaxPooling1D, Flatten, Dense, Dense
     a partire dai parametri passati da optuna.
@@ -118,6 +121,8 @@ def create_univariate_cnn(trial, n_steps_in, n_prediction):
     # creo il modello
     model = Sequential()
     model.add(Conv1D(filters= num_filters, kernel_size= k_size, activation='relu', input_shape=(n_steps_in, 1)))
+    model.add(Conv1D(filters=num_filters, kernel_size=k_size, activation='relu'))
+    model.add(Conv1D(filters=num_filters, kernel_size=k_size, activation='relu'))
     model.add(MaxPooling1D(pool_size= n_pooling))
     model.add(Flatten())
     model.add(Dense(n_dense_nodes, activation='relu'))
@@ -178,13 +183,15 @@ class UnivariateCNNObjective:
     
     # Verrà chiamata dallo study, crea il modello usando gli iperparametri in trial e ritorna il mase della predizione del validation
     def __call__(self, trial):
+    #aggiungo qui il codice pre prendere i parametri sotto forma di dizionario e passarli a create_univariate_cnn 
+
         model = create_univariate_cnn(trial, 
                                       n_steps_in= self.series.timesteps, 
                                       n_prediction = self.series.prediction_length)
         #I dati X per il fit devono avere dimensione [samples, timesteps, features], y invece non ha bisogno di manipolazioni
         model.fit(self.series.X.reshape((self.series.X.shape[0], self.series.X.shape[1], 1)), 
                 self.series.y,
-                epochs=500,
+                epochs=60,
                 verbose=0)
         print(f"{self.series.X.shape}")
         prediction = model.predict(self.series.validation_predict.reshape(1, self.series.timesteps, 1), verbose=0)
@@ -273,6 +280,20 @@ def test_weekly_lstm_tuning():
     study = optuna.create_study(direction='minimize')
     study.optimize(lstm_objective, n_trials = 10)
     print(study.best_params)
+
+def cnn_compute_metrics(dic: dict, n_prediction: int):
+    series_dic = dict()
+    for item in dic:
+        series_dic[item] = NNSeries(np.array(dic[item]['Amount_sold']), timesteps=730, prediction_length=7)
+    
+    params_list = dict()
+    #trovo i parametri per tutte le serie
+    for item in series_dic:
+        cnn_objective = UnivariateCNNObjective(series_dic[item])
+        study = optuna.create_study(direction='minimize')
+        study.optimize(cnn_objective, n_trials = 10)
+        params_list[item] = study.best_params
+
 
 
 if __name__ == "__main__":

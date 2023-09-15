@@ -26,14 +26,21 @@ def mase(actual, predicted) -> int:
 
 
 def mape(actual, predicted) -> int:
+    if(len(actual) != len(predicted)):
+         raise ValueError("Gli array devono avere la stessa lunghezza")
+    
     return (np.abs((actual - predicted) / actual).sum() / len(actual)) * 100
 
 
 def wape(actual, predicted) -> int:
+    if(len(actual) != len(predicted)):
+         raise ValueError("Gli array devono avere la stessa lunghezza")
     return np.abs(actual - predicted).sum() / np.abs(actual).sum()
 
 
 def rmse(actual, predicted) -> int:
+    if(len(actual) != len(predicted)):
+         raise ValueError("Gli array devono avere la stessa lunghezza")
     sum = 0
     for i in range(len(actual)):
             sum += np.power(actual[i]-predicted[i], 2)
