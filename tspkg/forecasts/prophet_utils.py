@@ -1,3 +1,6 @@
+import sys
+#path per il desk a casa
+sys.path.append(r"C:\Users\gabriele\Desktop\python_programs\TimeSeriesMetrics") 
 from tspkg.paths import *
 from tspkg.utils import *
 import tspkg.metrics as metric
@@ -14,6 +17,8 @@ Il cross validation torna utile per fare una previsione su dati presenti nella s
 che bisogna fare prima il fit sulla serie e quindi il modello "vede" i dati da predirre.
 Per fare delle prediction pure dovrò dividere la serie.
  """
+
+
 
 class ProphetObjective:
     """Classe che verrà utilizzata come funzione objective da inserire come argomento a optuna optimize.
@@ -104,17 +109,26 @@ def prophet_compute_metrics(series_dic: dict(), n_prediction: int) -> pd.Series:
     wape = list() 
     rmse = list()
     
+    
+
     for item in series_dic:
         mase.append(metric.mase(actual = np.array(series_dic[item]['Amount_sold'].iloc[-(n_prediction +1):]), predicted= pred[item]))
         mape.append(metric.mape(np.array(test[item]['Amount_sold']), pred[item]))
         wape.append(metric.wape(np.array(test[item]['Amount_sold']), pred[item]))
         rmse.append(metric.rmse(np.array(test[item]['Amount_sold']), pred[item]))
     
-    metrics = pd.Series([np.mean(mase), np.mean(mape), np.mean(wape), np.mean(rmse) ], 
+    series_metrics = list() 
+
+    for i in range(mase):
+        series_metrics.append(pd.Series([mase[i], mape[i], wape[i], rmse[i] ], 
+                        index = ['mase', 'mape', 'wape', 'rmse'], 
+                        name = "Prophet"))
+
+    cluster_metrics = pd.Series([np.mean(mase), np.mean(mape), np.mean(wape), np.mean(rmse) ], 
                         index = ['mase', 'mape', 'wape', 'rmse'], 
                         name = "Prophet")
     
-    return metrics
+    return cluster_metrics, series_metrics
 
 def prophet_tuned_compute_metrics(series_dic: dict(), n_prediction: int) -> pd.Series:
     """Fa il tuning del modello serie per serie e computa le metriche di errore utilizzando la funzione prophet_predict, le restituisce sotto forma di pandas Series
@@ -146,17 +160,25 @@ def prophet_tuned_compute_metrics(series_dic: dict(), n_prediction: int) -> pd.S
     wape = list() 
     rmse = list()
     
+    #Inserisco nelle liste i valori delle metriche, avro' 4 liste di lunghezza n_features
     for item in series_dic:
         mase.append(metric.mase(actual = np.array(series_dic[item]['Amount_sold'].iloc[-(n_prediction +1):]), predicted= pred[item]))
         mape.append(metric.mape(np.array(test[item]['Amount_sold']), pred[item]))
         wape.append(metric.wape(np.array(test[item]['Amount_sold']), pred[item]))
         rmse.append(metric.rmse(np.array(test[item]['Amount_sold']), pred[item]))
     
-    metrics = pd.Series([np.mean(mase), np.mean(mape), np.mean(wape), np.mean(rmse) ], 
+    series_metrics = list() 
+
+    for i in range(mase):
+        series_metrics.append(pd.Series([mase[i], mape[i], wape[i], rmse[i] ], 
+                        index = ['mase', 'mape', 'wape', 'rmse'], 
+                        name = "Prophet"))
+
+    cluster_metrics = pd.Series([np.mean(mase), np.mean(mape), np.mean(wape), np.mean(rmse) ], 
                         index = ['mase', 'mape', 'wape', 'rmse'], 
                         name = "Prophet")
     
-    return metrics
+    return cluster_metrics, series_metrics
 
 if __name__ == "__main__":
     
