@@ -48,7 +48,7 @@ def npts_compute_metrics(dic: dict(), n_prediction: int) -> pd.Series:
 
     series_metrics = list() 
 
-    for i in range(mase):
+    for i in range(len(mase)):
         series_metrics.append(pd.Series([mase[i], mape[i], wape[i], rmse[i] ], 
                         index = ['mase', 'mape', 'wape', 'rmse'], 
                         name = "NPTS"))

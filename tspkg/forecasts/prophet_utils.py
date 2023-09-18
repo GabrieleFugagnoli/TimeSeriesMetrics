@@ -54,6 +54,7 @@ class ProphetObjective:
 
 def prophet_tune(train_series, n_prediction):
     #usa la classe Prohet Objective e il metodo study
+    #riceve in input i dati di train e ProphetObjective li trasformerà in train e validate
     objective = ProphetObjective(train_series, n_prediction)
     study = optuna.create_study(direction = 'minimize')
     study.optimize(objective, n_trials = 30)
@@ -63,8 +64,7 @@ def prophet_tune(train_series, n_prediction):
 def prophet_predict(series: pd.DataFrame, n_prediction: int, params: dict) -> np.array:
     """Fit su series e predizione con orizzonte n_prediction.
         Computa la predizione e la restituisce come array numpy.
-      Series è una singola serie che contiene solo i dati già tagliati su cui fare il fit.
-      Eventualmente si potrà aggiungere il processo di tuning qua dentro"""
+      Series è una singola serie che contiene solo i dati già tagliati su cui fare il fit."""
     data = series.reset_index()
     data.columns = ['ds', 'y']
     m = Prophet(**params)
@@ -109,7 +109,6 @@ def prophet_compute_metrics(series_dic: dict(), n_prediction: int) -> pd.Series:
     wape = list() 
     rmse = list()
     
-    
 
     for item in series_dic:
         mase.append(metric.mase(actual = np.array(series_dic[item]['Amount_sold'].iloc[-(n_prediction +1):]), predicted= pred[item]))
@@ -130,13 +129,14 @@ def prophet_compute_metrics(series_dic: dict(), n_prediction: int) -> pd.Series:
     
     return cluster_metrics, series_metrics
 
-def prophet_tuned_compute_metrics(series_dic: dict(), n_prediction: int) -> pd.Series:
+def prophet_tune_compute_metrics(series_dic: dict(), n_prediction: int) -> pd.Series:
     """Fa il tuning del modello serie per serie e computa le metriche di errore utilizzando la funzione prophet_predict, le restituisce sotto forma di pandas Series
     1. Split delle serie in train e test
     2. Predizioni
     3. Confronto delle predizioni con i test 
     
-    train e test saranno dizionari di dataframe mentre pred sarà un dizionario di array""" 
+    train e test saranno dizionari di dataframe mentre pred sarà un dizionario di array
+    :param dict series_dic: dizionario raw contenenti le serie""" 
     train = dict()
     pred = dict()
     test = dict()
@@ -169,7 +169,7 @@ def prophet_tuned_compute_metrics(series_dic: dict(), n_prediction: int) -> pd.S
     
     series_metrics = list() 
 
-    for i in range(mase):
+    for i in range(len(mase)):
         series_metrics.append(pd.Series([mase[i], mape[i], wape[i], rmse[i] ], 
                         index = ['mase', 'mape', 'wape', 'rmse'], 
                         name = "Prophet"))
@@ -189,4 +189,4 @@ if __name__ == "__main__":
 
     #print(prophet_tuning(series))
 
-    print(prophet_tuned_compute_metrics(series, n_prediction=7))
+    print(prophet_tune_compute_metrics(series, n_prediction=7))
